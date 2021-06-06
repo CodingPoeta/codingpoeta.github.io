@@ -1,0 +1,13 @@
+-
+  icon: https://img.shields.io/badge/link-996.icu-red.svg
+  use_iconfont: false
+  name: 996.icu
+  automatic_name: true # true: display name when the icon is unavailable; false: always display name
+  link: https://996.icu
+# add more external links here:
+# -
+#   icon:
+#   use_iconfont:
+#   name:
+#   automatic_name:
+#   link:
