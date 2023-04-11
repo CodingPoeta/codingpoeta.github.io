@@ -18,20 +18,20 @@ timezone: Asia/Shanghai
 # jekyll-seo-tag settings › https://github.com/jekyll/jekyll-seo-tag/blob/master/docs/usage.md
 # --------------------------
 
-title: Chirpy # the main title
+title: CodingPoet # the main title
 
-tagline: A text-focused Jekyll theme # it will display as the sub-title
+tagline: Carpe diem.  # it will display as the sub-title
 
 description: >- # used by seo meta and the atom feed
-  A minimal, responsive and feature-rich Jekyll theme for technical writing.
+  It's a blog about coding, life, and everything in between, I'll share my thoughts and ideas and learnings here.
 
 # fill in the protocol & hostname for your site, e.g., 'https://username.github.io'
-url: "https://username.github.io"
+url: "https://codingpoeta.github.io"
 
-author: your name
+author: CodingPoet
 
 github:
-  username: github_username # change to your github username
+  username: CodingPoeta # change to your github username
 
 twitter:
   username: twitter_username # change to your twitter username
@@ -39,13 +39,13 @@ twitter:
 social:
   # Change to your full name.
   # It will be displayed as the default author of the posts and the copyright owner in the Footer
-  name: your_full_name
-  email: example@domain.com # change to your email address
+  name: CodingPoet
+  email: CodingPoeta@gmail.com # change to your email address
   links:
     # The first element serves as the copyright owner's link
-    - https://username.github.io
+    - https://codingpoeta.github.io
     - https://twitter.com/username # change to your twitter homepage
-    - https://github.com/username # change to your github homepage
+    - https://github.com/codingpoeta # change to your github homepage
     # Uncomment below to add more social links
     # - https://www.facebook.com/username
     # - https://www.linkedin.com/in/username
@@ -56,15 +56,15 @@ google_site_verification: # fill in to your verification string
 # The end of `jekyll-seo-tag` settings
 
 google_analytics:
-  id: # fill in your Google Analytics ID
+  id: G-2XXJMNM7LJ # fill in your Google Analytics Measurement ID
   # Google Analytics pageviews report settings
   pv:
     proxy_endpoint: # fill in the Google Analytics superProxy endpoint of Google App Engine
     cache_path: # the local PV cache data, friendly to visitors from GFW region
 
 theme_mode: # [light|dark] # empty for system default
-backgroud_animation: false
-mouse_click_effect: false
+backgroud_animation: true
+mouse_click_effect: true
 
 # all images started with '/' will loaded from img_cdn.
 # such as 'https://cdn.com'
@@ -76,12 +76,12 @@ avatar: /avatar.jpg
 panel:
   post:
     lastmod: true
-    trending_tags: false
+    trending_tags: true
     external_links: true
     toc: true
 
 comments:
-  active: # The global switch for posts comments, e.g., 'disqus'.  Keep it empty means disable
+  active: waline # The global switch for posts comments, e.g., 'disqus'.  Keep it empty means disable
   # The active options are as follows:
   disqus:
     shortname: # fill with the Disqus shortname. › https://help.disqus.com/en/articles/1717111-what-s-a-shortname
@@ -91,8 +91,8 @@ comments:
     issue_term: # < url | pathname | title | ...>
   # Waline 评论系统 › https://waline.js.org/
   waline:
-    server: # Vercal 服务端地址
-    placeholder: 说点什么吧！ # 空白评论框时显示的文字
+    server: https://waline-comments-codingpoeta.vercel.app/ # Vercel address
+    placeholder: Say something...
     avatar: mp # 默认头像  › https://waline.js.org/guide/client/avatar.html
   # Giscus options › https://giscus.app
   giscus:
