@@ -5,14 +5,19 @@ categories: [Blogging, Learning]
 tags: [c++]
 ---
 
-本篇是对 C++11-C++23 的学习整理，主要参考 [cppreference](https://en.cppreference.com/w/cpp/11)
+本篇是对 C++11-C++23 的学习整理，主要参考
+
+[cppreference](https://en.cppreference.com/w/cpp/11)
+《现代 C++ 语言核心特性解析》
+
 
 ## `auto` & `decltype`
 
 c++11 引入了 `auto` 和 `decltype` 关键字，提供了在编译期进行类型推导的能力
 
-- `auto`: 用于推导出变量的类型 (`decltype(auto)` 同理，但遵循 decltype 的推导规则，主要解决 `auto` 无法表达引用类型的问题)
+- `auto`: 用于推导出变量的类型
   - `const` 和 `&` 需要手动添加
+  - `decltype(auto)` 同理，但遵循 decltype 的推导规则，主要解决 `auto` 无法表达引用类型的问题,must be the sole constituent of the declared type
 
   ```cpp
   // auto x = expr
@@ -23,8 +28,8 @@ c++11 引入了 `auto` 和 `decltype` 关键字，提供了在编译期进行类
   auto p_i1 = &i; // p_i1 is int*
 
   auto j = 0.0; // j is double
-  decltype(auto) j0 = j; // j0 is double
-  decltype(auto) j1 = (j); // j1 is double&
+  decltype(auto) j0 = j; // j0 is double --> decltype(j) is double
+  decltype(auto) j1 = (j); // j1 is double& --> decltype((j)) is double&
   // The placeholder decltype(auto) must be the sole constituent of the declared type
 
   // new expression
@@ -78,7 +83,9 @@ c++11 引入了 `auto` 和 `decltype` 关键字，提供了在编译期进行类
 
 ## trailing return type
 
-- 使用 `auto` 和 `decltype` 情况下的后置返回类型 --> 受到用于类型推导的变量作用域的限制，只能后置
+C/C++ 正常的函数声明都是返回类型前置的，但是在 C++11 中引入了后置返回类型 `auto func() -> int`，主要用于解决函数返回类型依赖于参数类型的情况
+
+- 使用 `auto` 和 `decltype` 时 --> 受到用于类型推导的局部变量（参数）作用域的限制，只能后置
 
   ```cpp
   template<typename T, typename U>
@@ -88,6 +95,10 @@ c++11 引入了 `auto` 和 `decltype` 关键字，提供了在编译期进行类
   ```
 
 - 函数指针作为返回值，需要后置返回类型 --> 函数指针的返回类型建议后置，不然容易产生歧义
+
+  ```cpp
+  auto fpif(int)->int(*)(int)
+  ```
 
 ## defaulted and deleted functions
 
@@ -178,45 +189,94 @@ c++11 引入了 `auto` 和 `decltype` 关键字，提供了在编译期进行类
 
 ## lvalue, rvalue, xvalue, glvalue, prvalue
 
-### 概念
+C++ 的复杂性很大程度上就在于，它提供了太多的内存模型----
 
-- expression 表达式
-  - glvalue (generalized lvalue) 泛左值：指一个通过评估能够确定对象/位域/函数的标识的表达式 --> 具名对象，可以取地址
+- 你有太多的地方能放对象：栈、堆、全局数据区
+- 太多的方式去访问对象：变量访问，指针访问，引用访问
+  - 使用指针可以避免创建临时对象
+  - 使用（左值）引用可以避免指针带来的危险
+- 太多的方式去传递对象：值传递，引用传递，指针传递
+- 及其复杂的内存顺序模型：memory order
+
+相比之下rust的内存模型就简单很多，一定意义上可以说rust的内存模型是c++内存模型的一个完备子集。
+
+这一节仅仅只是对左值和右值相关概念的一个归纳，如果缺乏编译原理相关的基础知识可能还是会有些难以理解。
+
+### 左值引用
+
+左值引用是C++编程中非常常见的特性之一，它的出现让C++能一定程度上避免使用危险的指针。
+
+左值引用如果加上const就是常量左值引用，它有一个很有趣的特性就是还能够引用右值，比如 `const int & x = 5;`，例子中语句结束后，右值5的生命周期会被延长。
+
+这个特性也许显得有些匪夷所思，那么不妨看看下面这段函数声明：
+
+```cpp
+struct Foo {
+  Foo() {}
+  Foo(const Foo &) {}
+  Foo& operator=(const Foo &) { return *this; }
+};
+
+Foo makeFoo() { return Foo(); }
+
+int main() {
+  Foo f1;
+  Foo f2(f1);
+  Foo f3(makeFoo());
+  f3 = makeFoo();
+}
+```
+
+这里构造函数需要接收一个常量引用作为参数，如果我们调用Foo函数时传入一个右值，那么这个右值的生命周期会被延长，这样foo函数就能够安全的使用这个右值了。
+
+### 右值引用
+
+右值引用是一种能且只能引用右值的方法。它更像是一种为了对右值实现移动语义而出现的语法糖，用于自动走右值的那个构造或者赋值函数，从而减少一部分额外的构造析构过程中（new和delete）的开销。
+
+关于移动语义和具体例子请看下面两节。如果学习过rust的应该能联想到rust中的设计，rust中几乎每一个传参调用都是move语义。
+
+### 概念详解
+
+左值和右值的概念早在C++98的时候就出现了，字面意义上来说，expression （表达式）左边的值就是左值，而表达式右边的就是右值，但很明显左值也可能出现在表达式右边。所以想要准确区分左值右值还需理解其内在含义，只是当时这些概念对写代码来说并不重要。
+
+后来C++11中出现了右值引用，于是值类别被赋予了新的含义，不过直到C++17标准中才对值的类别进行了明确的定义。
+
+值的类别是表达式的一种属性，我们常说的左值和右值实际上指的是表达式。表达式首先被分为了泛左值和右值：
+
+- expression 表达式：分为 glvalue 和 rvalue
+  - glvalue (generalized lvalue) 泛左值：指一个通过评估（evaluate）能够确定对象/位域/函数的标识的表达式 --> 简单来说，它确定了对象或者函数的标识 identifier（具名对象，可以取地址）
     - lvalue
     - xvalue (expiring value) 将亡值：表示资源可以被重用的对象和位域，通常是因为他们接近其生命周期的末尾，另外也有可能是经过右值引用的转换产生的。 --> 临时对象，可以取地址
   - rvalue
-    - prvalue (pure rvalue) 纯右值：指一个通过评估能够用于初始化对象和位域，或者能够计算运算符操作数的值的表达式 --> 临时对象，不可以取地址
+    - prvalue (pure rvalue) 纯右值：指一个通过评估（evaluate）能够用于初始化对象和位域，或者能够计算运算符操作数的值的表达式 --> 临时对象，不可以取地址
     - xvalue
 
-注意：值类别都是表达式的属性，我们常说的左值和右值实际上指的是表达式。
-
-例如，`i++`是先拷贝一个临时值作为返回值，即得到的是将亡值，`++i` 是返回的自己，即左值。
+例如，表达式`i++`是先拷贝一个临时值作为返回值，即得到的是将亡值，表达式`++i` 是返回的自己，即左值。
 
 ### xvalue
 
-本质上说，产生 xvalue 的途径有两种，第一种是使用类型转换将泛左值转换为其右值引用；第二种是临时量实质化（c++17引入），指的是纯右值转换为一个临时对象的过程。例如：
+将亡值是比较重要的一个概念。将亡值一般产生自临时变量，属于右值的范畴，但可以通过右值引用延长其生命周期并接着使用，因此也属于泛左值。
+
+本质上说，产生 xvalue 的途径有两种，第一种是使用类型转换将泛左值转换为其右值引用 `static_cast<BigMemoryPool&&>(my_pool)` ；
+
+第二种就是临时量实质化（c++17引入），指的是纯右值转换为一个临时对象的过程。例如：
 
 ```cpp
 struct X {
   int a;
-  X() : a(255) {}
-  X(const X&) {}
-  ~X(){}
 };
-X getX() { return X(); }
-X getX2() { return getX(); }
 int main() {
-  int b = getX2().a;
+  int b = X().a;
 }
 ```
 
-上述 `X()` 是一个纯右值，但是在 `b = X().a` 这个表达式中，`X()` 被转换为一个临时对象，这个临时对象就是一个 xvalue。
+上述 `X()` 是一个纯右值，访问其成员变量a需要一个泛左值。在 `b = X().a` 这个表达式中，发生了一次**临时变量实质化**，`X()` 被转换为一个将亡值，然后才能访问a。
 
 ### std::move
 
-`std::move` 的作用是将一个泛左值转换为一个将亡值，这个将亡值可以被绑定到一个右值引用上，从而实现对一个左值的移动操作（通过移动构造函数）。
+`std::move` 的作用是将一个泛左值转换为一个将亡值，这个将亡值可以被绑定到一个右值引用上，从而实现**对一个左值的移动操作**（通过移动构造函数）。
 
-注意，单纯地将一个左值转换到另外一个左值没有什么意义，正确的使用场景是在一个右值被转换为左值后需要再次转换为右值。例如：
+注意，单纯地将一个左值转换到另外一个左值没有什么意义，正确的使用场景是在一个右值被转换为左值后需要再次转换为右值，最典型的例子就是一个右值作为实参传递到函数中，形参变成了一个左值。例如：
 
 ```cpp
 struct X {
@@ -236,9 +296,11 @@ int main (){
 }
 ```
 
+上面的例子中，函数`moveX` 的形参是一个右值引用，表示这里需要接收一个右值，但是在使用形参x的时候它是一个左值，因此为了能够调用移动构造函数，需要用 `std::move` 将其转换为右值。
+
 ### 万能引用 & 引用折叠
 
-- 常量左值引用既可以引用左值又可以引用右值，可惜其具有常量性质
+- 常量左值引用既可以引用左值又可以引用右值，可惜其具有常量性质，使用会受到限制
 - c++11 引入了万能引用，即 `T&&`，它可以引用左值也可以引用右值，但是它的具体类型取决于实参的类型
 
 ```cpp
@@ -251,7 +313,9 @@ int &&x = get_val(); // 右值引用
 auto &&y = get_val(); // 万能引用
 ```
 
-引用折叠规则：
+所谓万能引用，其本质就是发生了类型推导，在 `T&&` 和 `auto&&` 的初始化过程中都会发生类型推导。这个推导过程中，如果源对象是左值，那么推导出来的类型就是左值引用，如果源对象是右值，那么推导出来的类型就是右值引用。
+
+万能引用能够这么灵活引用的原因就在于C++11中新增了一套引用折叠规则：
 
 | 模板类型 | T 实际类型 | 最终类型 |
 | --- | --- | --- |
@@ -262,15 +326,72 @@ auto &&y = get_val(); // 万能引用
 | T&& | R& | R& |
 | T&& | R&& | R&& |
 
+PS：只要有左值参与，结果就是左值引用，否则就是右值引用。
+
 ### std::forward
 
 实现完美转发的时候需要利用引用折叠规则，并使用 `static_cast<T &&>` 进行类型转换，从而保留引用的类型。
 
-和移动语义一样，c++11 提供了一个更为便捷的方法 `std::forward`。
+```cpp
+template<typename T>
+void show_type(T t) {
+  std::cout << typeid(t).name() << std::endl;
+}
+
+template<typename T>
+void perfect_forwarding(T &&t) {
+  show_type(static_cast<T &&>(t));
+}
+```
+
+和移动语义一样，c++11 包装了一个更为便捷的方法 `std::forward`。
+
+目前为止，C++中跟左值右值相关的概念已经基本介绍完了，可以试试下面这个更详细的示例。
+
+```cpp
+#include <iostream>
+
+#ifndef TYPE
+  #define TYPE int
+#endif
+
+struct Integer {
+  Integer(int i) : i_(i) {}
+  Integer(const Integer &i) : i_(i.i_) { std::cout << "copy" << std::endl; }
+  Integer(Integer &&i) : i_(i.i_) { std::cout << "move" << std::endl; }
+  int i_;
+};
+
+void PrintV(TYPE &t) { std::cout << "lvalue" << std::endl; }
+
+void PrintV(TYPE &&t) { std::cout << "rvalue" << std::endl; }
+
+template <typename T>
+void Test(T &&t) {
+  std::cout << "----------------- " << &t << std::endl;
+  PrintV(t);
+  // PrintV(static_cast<T&&>(t));
+  PrintV(std::forward<T>(t));
+  PrintV(std::move(t));
+}
+
+int main() {
+  Test(TYPE(1));  // lvalue rvalue rvalue
+  TYPE a = 1;
+  std::cout << &a << std::endl;
+  Test(a);                            // lvalue lvalue rvalue
+  Test(std::forward<TYPE>(a));     // lvalue rvalue rvalue
+  Test(std::forward<TYPE &>(a));   // lvalue lvalue rvalue
+  Test(std::forward<TYPE &&>(a));  // lvalue rvalue rvalue
+  return 0;
+}
+```
 
 ### 编译器提供的的隐式移动
 
-需要提供`-fno-elide-constructors`编译选项，关闭返回值优化，不然看不到什么输出。
+在编译器升级到新标准之后，有可能会发现程序运行的性能提升了。比如新标准的编译器会在一定情况下将隐式复制修改为隐式移动，从而提升程序的性能，例如经典的 RVO 优化。
+
+想要观察到这种优化现象，注意需要提供`-fno-elide-constructors`编译选项，关闭默认的返回值优化，不然看不到什么差别。
 
 ```cpp
 struct X {
@@ -284,3 +405,55 @@ int main() {
   X x = f(X{});
 }
 ```
+
+有兴趣的话可以上 [compiler explorer](https://gcc.godbolt.org/) 查看编译器配合各种编译选项时的优化情况。
+
+### 总结
+
+右值引用是现代C++中一个极其重要的概念，它最为重要的作用就是提高了C++在对象数据转移时的执行效率，同时也增强了模板的功能，堪称C++11中最重要的特性没有之一。
+
+## list initialization
+
+## scoped enums
+
+## constexpr and literal types
+
+## delegating and inherited constructors
+
+## brace-or-equal initializers
+
+## nullptr
+
+## long long
+
+## char16_t and char32_t
+
+## type aliases
+
+## variadic templates
+
+## generalized (non-trivial) unions
+
+## generalized PODs (trivial types and standard-layout types)
+
+## Unicode string literals
+
+## user-defined literals
+
+## attributes
+
+## lambda expressions
+
+## noexcept specifier and noexcept operator
+
+## alignof and alignas
+
+## multithreaded memory model
+
+## thread-local storage
+
+## GC interface
+
+## range-for
+
+## static_assert
