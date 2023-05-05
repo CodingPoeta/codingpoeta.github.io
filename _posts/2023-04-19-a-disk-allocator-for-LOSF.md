@@ -693,6 +693,21 @@ bitmap分配器的性能瓶颈在于first fit的分配策略会源源不断产�
   - 离线操作，不影响在线服务，因此耗时完全能够接受
   - bitmap 的优势之一也正在此：即free操作的时间复杂度是O(1)，并且不需要额外的compaction操作来合并碎片
 
+### 如何 compaction
+
+我们先衡量一下compaction的代价：
+
+- bitmap allocator：
+  - 分配的时间复杂度是O(n)，free的时间复杂度是O(1)，无需额外compaction
+- linked list pooling allocator：
+  - 分配的时间复杂度是O(1)，free的时间复杂度是O(1)，compaction的时间复杂度是O(nlogn)
+- search tree allocator：
+  - 分配的时间复杂度是O(logn)，free的时间复杂度是O(logn)，无需额外compaction
+
+最简单的思路当然是把linked list pooling与其他的分配器组合一下咯，比如：
+- 同时使用bitmap 和 linked list，这样可以做到分配性能为O(1)，free性能为O(1)，compaction性能为O(n)，但是这样的话，内存占用就会变大，而且compaction操作可以离线进行，从O(nlogn)优化到O(n)的收益并不大
+- 用一颗查找树来维护有序性也能降低compaction的时间复杂度，但是由于每次free都需要维护树的有序性，因此free的性能会变差，而且内存占用也会变大，可见收益并不明显
+
 ### 关于尺度
 
 前面一直在说尺度很重要，更重要的考虑的是空间尺度，其实时间尺度也非常重要，比如
