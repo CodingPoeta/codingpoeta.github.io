@@ -1,7 +1,7 @@
 ---
 title: Modern C++ Learning ( Core Language Features )
 date: 2023-04-12 18:32:00 +0800
-categories: [Blogging, Learning]
+categories: [Notes, Learning]
 tags: [c++]
 ---
 
