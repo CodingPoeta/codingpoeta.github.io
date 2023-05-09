@@ -63,8 +63,8 @@ google_analytics:
     cache_path: # the local PV cache data, friendly to visitors from GFW region
 
 theme_mode: # [light|dark] # empty for system default
-backgroud_animation: true
-mouse_click_effect: true
+backgroud_animation: false
+mouse_click_effect: false
 
 # all images started with '/' will loaded from img_cdn.
 # such as 'https://cdn.com'

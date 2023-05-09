@@ -722,9 +722,21 @@ bitmap分配器的性能瓶颈在于first fit的分配策略会源源不断产�
   - 指令周期：从取指到指令执行结束的时间，因为流水线的存在，指令周期会比时钟周期长
     - RISC 架构：以ARM7为例，简单的算术和逻辑运算是单周期的，复杂的（乘除法）可能有2-5个周期
     - CISC 架构中简单的指令执行快，复杂的指令执行慢
+- Branch mispredict: 3ns
+- mutex lock/unlock: 20ns
 - L1 cache: 1.1ns
 - L2 cache: 3.3ns
 - L3 cache: 12.8ns
 - L4 cache: 42.4ns
-- Main memory: 60-120ns 5-10$/GB
-- SSD: 8-20us with PCIE4.0 0.1-0.2$/GB
+- Main memory: 60-120ns -- 5-10$/GB
+- 从内存顺序读取 1 MB: 3,000 ns
+- SSD随机读: 16,000ns with PCIE4.0 -- 0.1-0.2$/GB
+- SSD顺序读取 1 MB: 49,000 ns
+- 同一个数据中心往返: 500,000 ns
+- 磁盘顺序读取 1 MB: 825,000 ns
+- 磁盘寻址: 2,000,000 ns (2 ms)
+- 美国发送到欧洲的数据包: 150,000,000 ns（150 ms）
+
+UCB 为记录不同年代的计算机操作耗时做了一个[动态网页](https://colin-scott.github.io/personal_website/research/interactive_latency.html)，今后有需要了都可以去逛逛，记住了就能作为心中的一杆尺子。
+
+比如，从服务器的内存中请求数据会比直接从磁盘上读取要快。
