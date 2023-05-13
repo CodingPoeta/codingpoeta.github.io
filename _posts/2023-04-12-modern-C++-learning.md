@@ -10,7 +10,6 @@ tags: [c++]
 [cppreference](https://en.cppreference.com/w/cpp/11)
 《现代 C++ 语言核心特性解析》
 
-
 ## `auto` & `decltype`
 
 c++11 引入了 `auto` 和 `decltype` 关键字，提供了在编译期进行类型推导的能力

@@ -5,7 +5,7 @@ categories: [Blogging, Learning]
 tags: [OS, linux]
 ---
 
-> For linux v4.19
+> For linux v4.19 as an example, also works for other versions.
 
 ```bash
 git clone https://github.com/torvalds/linux
@@ -15,7 +15,7 @@ git checkout -b v4.19-dev v4.19
 ## Preparation
 
 - `sudo apt install libncurses5-dev libssl-dev bison flex libelf-dev gcc make openssl libc6-dev`
-- note: should use gcc-8 (or older gcc), or else you may need to add some compile options to disable some features.
+- note: should use gcc-8 (or older gcc) for compiling `v4.19`, or else you may need to add some compile options to disable some features.
 
 ## Compile the kernel
 
@@ -59,6 +59,26 @@ sudo ln -s /usr/include/asm-generic/ /usr/include/asm
 ```
 
 ### Build an initrd-based rootfs
+
+First create a simple c program as the init program.
+
+```c
+#include <stdio.h>
+int main()
+{
+    printf("hello world!\n");
+    printf("hello linux!\n");
+    fflush(stdout);
+    while(1);
+    return 0;
+}
+```
+
+```sh
+gcc --static -o fakeinit fakeinit.c -m32
+# use cpio to create initrd_rootfs.img
+echo fakeinit | cpio -o --format=newc > initrd_rootfs.img
+```
 
 ### Build a rootfs with busybox
 
@@ -128,6 +148,16 @@ qemu-system-x86_64 \
  -s -S # --> enable gdb debug
 ```
 
+For initrd_rootfs.img:
+
+```sh
+qemu-system-x86_64 \
+ -kernel ./arch/x86/boot/bzImage \ # --> kernel image file
+ -initrd  ../rootfs/by_initrd/initrd_rootfs.img \
+ -serial stdio \
+ -append "root=/dev/ram rdinit=/fakeinit console=ttyS0 nokaslr"
+```
+
 ### Connect GDB to Qemu
 
 ```sh
@@ -140,5 +170,6 @@ c
 
 ref:
 
+- [The Linux Kernel](https://www.kernel.org/doc/html/next/index.html)
 - [https://www.sobyte.net/post/2022-02/debug-linux-kernel-with-qemu-and-gdb/](https://www.sobyte.net/post/2022-02/debug-linux-kernel-with-qemu-and-gdb/)
 - [https://www.josehu.com/memo/2021/01/02/linux-kernel-build-debug.html](https://www.josehu.com/memo/2021/01/02/linux-kernel-build-debug.html)
