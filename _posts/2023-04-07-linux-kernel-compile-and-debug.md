@@ -28,6 +28,8 @@ git checkout -b v4.19-dev v4.19
 - turn off:
   - Kernel hacking -> Compile time checks and compiler options -> Reduce debugging information
 
+> for linux v5.x, you need to turn on `Kernel hacking -> Compile-time checks and compiler options -> Debug information (Generate DWARF Version 5 debuginfo) -> DWARF Version 5 debuginfo` to enable debug info.
+
 ### Compiling
 
 Run `make -j$(nproc)`.
@@ -103,23 +105,28 @@ If you need to compile 32-bit programs, you need to add `-m32` to the following 
 - Settings -> Build Options -> Additional CFLAGS
 - Settings -> Build Options -> Additional LDFLAGS
 
-Then, run `make` to compile.
+Then, run `sudo make install CONFIG_PREFIX=../_install_32` to compile for 32-bit.
+
+Or run `sudo make install  CONFIG_PREFIX=../_install` to compile for 64-bit.
 
 #### Creat rootfs with busybox
 
 First create an empty disk image file:
 
 ```sh
-dd if=/dev/zero of=./busybox_rootfs_ext3_m32.img bs=1M count=10
-mkfs.ext3 ./busybox_rootfs_ext3_m32.img
+dd if=/dev/zero of=./busybox_rootfs_ext3_m64.img bs=1M count=10
+mkfs.ext3 ./busybox_rootfs_ext3_m64.img
 mkdir rootfs
-sudo mount -t ext3 -o loop ./busybox_rootfs_ext3_m32.img ./rootfs
+sudo mount -t ext3 -o loop ./busybox_rootfs_ext3_m64.img ./rootfs
 ```
 
 Then copy the busybox files to the rootfs:
 
 ```sh
-sudo cp -r _install_32/* rootfs
+sudo cp -r _install/* rootfs
+# for 32-bit, run:
+# sudo cp -r _install_32/* rootfs
+
 # or make install CONFIG_PREFIX=/path/to/rootfs/
 ```
 
@@ -133,16 +140,92 @@ sudo cp -r busybox-1.32.1/examples/bootfloppy/etc/* rootfs/etc/
 sudo umount rootfs
 ```
 
+### Build a rootfs with Ubuntu
+
+You can also build a rootfs with Ubuntu/Debian/Archlinux and any other Linux distributions.
+
+#### Download and extract the rootfs
+
+I choose to use [Ubuntu Base 22.04.2 LTS](https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/) as the rootfs.
+
+```sh
+cd rootfs/by_disk_image
+wget https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-22.04-base-amd64.tar.gz
+
+dd if=/dev/zero of=./ubuntu_rootfs_ext4_m64.img bs=1M count=500
+mkfs.ext4 ubuntu_rootfs_ext4_m64.img
+mkdir rootfs_mount
+sudo mount -t ext4 -o loop ./ubuntu_rootfs_ext4_m64.img ./rootfs_mount
+sudo tar -xpf ubuntu-base-22.04-base-amd64.tar.gz -C rootfs_mount
+sudo umount rootfs_mount
+```
+
+#### Configure the rootfs
+
+```sh
+# mount the rootfs
+sudo mount -t ext4 -o loop ./ubuntu_rootfs_ext4_m64.img ./rootfs_mount
+sudo mount -v --bind /dev rootfs_mount/dev
+sudo mount -vt devpts devpts rootfs_mount/dev/pts -o gid=5,mode=620
+sudo mount -vt sysfs sysfs rootfs_mount/sys
+sudo mount -vt proc proc rootfs_mount/proc
+sudo mount -vt tmpfs tmpfs rootfs_mount/run
+sudo cp /etc/resolv.conf rootfs_mount/etc/resolv.conf
+# chroot into the rootfs
+sudo chroot rootfs_mount
+# configure the rootfs
+passwd root
+
+apt update
+apt install -y vim # or other packages
+
+# default shell is dash, change it to bash
+rm /bin/sh
+ln -s /bin/bash /bin/sh
+# use systemd as the init program
+apt install -y systemd
+ln -s /lib/systemd/systemd /sbin/init
+
+exit
+# umount the rootfs
+sudo umount rootfs_mount/run
+sudo umount rootfs_mount/proc
+sudo umount rootfs_mount/sys
+sudo umount rootfs_mount/dev/pts
+sudo umount rootfs_mount/dev
+sudo umount rootfs_mount
+
+# check & resize the rootfs
+e2fsck -p -f ubuntu_rootfs_ext4_m64.img
+resize2fs  -M ubuntu_rootfs_ext4_m64.img
+```
+
 ## Debug the kernel
 
 ### Boot the kernel with Qemu
 
 Go to the linux source code root directory,
 
+For ubuntu_rootfs_ext4_m64.img:
+
+```sh
+qemu-system-x86_64 \
+ -kernel ./arch/x86/boot/bzImage \
+ -hda  ../rootfs/by_disk_image/ubuntu_rootfs_ext4_m64.img \
+ -serial stdio \
+ -append "root=/dev/sda rw console=ttyS0 nokaslr"
+```
+
+If you are following the above steps, you can successfully boot the kernel and login to the rootfs.
+
+If your init program is not systemd but `/bin/sh`, you might get a kernel panic. The reason is that `/bin/sh` can not work with `nokaslr` parameter. You can remove `nokaslr` parameter and boot the kernel again.
+
+For busybox_rootfs_ext3_m64.img:
+
 ```sh
 qemu-system-x86_64 \
  -kernel ./arch/x86/boot/bzImage \ # --> kernel image file
- -hda  ./rootfs/by_disk_image/busybox_rootfs_ext3_m32.img \ # --> rootfs image file
+ -hda  ./rootfs/by_disk_image/busybox_rootfs_ext3_m64.img \ # --> rootfs image file
  -serial stdio \ # --> use stdio as the serial port
  -append "root=/dev/sda console=ttyS0 nokaslr" \ # --> kernel parameters
  -s -S # --> enable gdb debug
@@ -159,6 +242,8 @@ qemu-system-x86_64 \
 ```
 
 ### Connect GDB to Qemu
+
+Note: You need to start qemu with `-s -S` to enable gdb debug.
 
 ```sh
 gdb ./vmlinux
